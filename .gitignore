@@ -1,0 +1,22 @@
+# Ignorar virtual environments
+venv/
+.venv/
+env/
+.env/
+venv310/
+# Arquivos gerados pelo Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Arquivos de cache do pip
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Arquivos de configuração do VSCode
+.vscode/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db

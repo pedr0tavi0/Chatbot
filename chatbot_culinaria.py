@@ -7,6 +7,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from nltk.tokenize import sent_tokenize
 import threading
+from transformers import pipeline
+import speech_recognition as sr
+
+# Análise de sentimento
+sentiment_pipeline = pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 # Baixar dados necessários
 nltk.download('punkt')
@@ -23,6 +28,17 @@ def preprocessing(sentence):
     sentence = sentence.lower()
     tokens = [token.text for token in nlp(sentence) if not (token.is_stop or token.is_punct)]
     return " ".join(tokens)
+
+# Analise de Sentimentos
+def analisar_sentimento(texto):
+    resultado = sentiment_pipeline(texto)[0]
+    label = resultado['label']
+    if "1" in label or "2" in label:
+        return "negativo"
+    elif "4" in label or "5" in label:
+        return "positivo"
+    else:
+        return "neutro"
 
 # Análise da pergunta
 def analisar_pergunta(user_text):
@@ -62,12 +78,36 @@ def send_message(text=None):
 
     def bot_response():
         resposta = encontrar_resposta(user_text)
+        sentimento = analisar_sentimento(user_text)
+
         chat_area.config(state='normal')
-        chat_area.insert(tk.END, f"Bot: {resposta}\n", 'bot')
+        chat_area.insert(tk.END, f"🤖 Bot ({sentimento}): {resposta}\n", 'bot')
         chat_area.config(state='disabled')
         chat_area.see(tk.END)
 
     threading.Thread(target=bot_response).start()
+
+def reconhecer_fala():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        chat_area.config(state='normal')
+        chat_area.insert(tk.END, "🎤 Ouvindo...\n", 'bot')
+        chat_area.config(state='disabled')
+        chat_area.see(tk.END)
+        try:
+            audio = r.listen(source, timeout=5)
+            texto = r.recognize_google(audio, language="pt-BR")
+            send_message(texto)
+        except sr.UnknownValueError:
+            chat_area.config(state='normal')
+            chat_area.insert(tk.END, "❌ Bot: Não entendi o que você disse.\n", 'bot')
+            chat_area.config(state='disabled')
+            chat_area.see(tk.END)
+        except sr.WaitTimeoutError:
+            chat_area.config(state='normal')
+            chat_area.insert(tk.END, "⏱️ Bot: Tempo de escuta esgotado.\n", 'bot')
+            chat_area.config(state='disabled')
+            chat_area.see(tk.END)
 
 def quit_app():
     if messagebox.askokcancel("Sair", "Tem certeza que deseja sair?"):
@@ -114,15 +154,18 @@ for pergunta in perguntas_sugeridas:
 user_input = tk.Entry(window, font=("Arial", 14))
 user_input.pack(fill=tk.X, padx=10, pady=(0, 10), side=tk.BOTTOM)
 
-# Botões de envio e sair
+# Botões de envio, microfone e sair
 button_frame = tk.Frame(window, bg="#fefefe")
 button_frame.pack(pady=(0, 10), side=tk.BOTTOM)
 
 send_button = tk.Button(button_frame, text="Enviar", command=send_message, bg="#4CAF50", fg="white", font=("Arial", 12), width=10)
 send_button.grid(row=0, column=0, padx=5)
 
+mic_button = tk.Button(button_frame, text="🎤 Falar", command=reconhecer_fala, bg="#2196F3", fg="white", font=("Arial", 12), width=10)
+mic_button.grid(row=0, column=1, padx=5)
+
 exit_button = tk.Button(button_frame, text="Sair", command=quit_app, bg="#f44336", fg="white", font=("Arial", 12), width=10)
-exit_button.grid(row=0, column=1, padx=5)
+exit_button.grid(row=0, column=2, padx=5)
 
 # Estilo para textos
 chat_area.tag_config('user', foreground='blue')
